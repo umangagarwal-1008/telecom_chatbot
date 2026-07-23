@@ -55,58 +55,18 @@ st.set_page_config(
 )
 
 
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+OPENAI_API_BASE = st.secrets["OPENAI_API_BASE"]
+LANGCHAIN_API_KEY = st.secrets["LANGCHAIN_API_KEY"]
+LANGCHAIN_TRACING_V2 = st.secrets["LANGCHAIN_TRACING_V2"]
+LANGCHAIN_PROJECT = "telecom"
+
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. SECRETS  ->  ENVIRONMENT VARIABLES
 #    Done before importing LangChain so the SDK picks the credentials up.
 # ══════════════════════════════════════════════════════════════════════════════
-def _load_secrets_into_env() -> None:
-    """Copy required credentials from st.secrets into os.environ.
-
-    Fails fast with a clear message if the OpenAI key is missing, so the app
-    never silently starts without credentials.
-    """
-    try:
-        openai_key = st.secrets["OPENAI_API_KEY"]
-    except (KeyError, FileNotFoundError):
-        st.error(
-            "🔑 **OPENAI_API_KEY is not set.**\n\n"
-            "Add it in your Streamlit app's **Secrets** panel "
-            "(Manage app → Settings → Secrets), or in a local "
-            "`.streamlit/secrets.toml` file:\n\n"
-            "```toml\nOPENAI_API_KEY = \"sk-...\"\n```"
-        )
-        st.stop()
-
-    os.environ["OPENAI_API_KEY"] = str(openai_key)
-
-    # Custom base URL (e.g. the Great Learning proxy or an Azure-compatible
-    # gateway). We keep it in a module global AND the env vars so it is passed
-    # explicitly into every model client below — relying on env vars alone is
-    # unreliable across langchain-openai versions.
-    api_base = str(st.secrets.get("OPENAI_API_BASE", "") or "").strip()
-    if api_base:
-        os.environ["OPENAI_BASE_URL"] = api_base
-        os.environ["OPENAI_API_BASE"] = api_base
-
-    # Optional: LangSmith observability. Only enable tracing if a key is present,
-    # otherwise the tracer itself raises auth errors.
-    tracing = str(st.secrets.get("LANGCHAIN_TRACING_V2", "false")).lower()
-    ls_key = st.secrets.get("LANGCHAIN_API_KEY", "")
-    if tracing == "true" and ls_key:
-        os.environ["LANGCHAIN_TRACING_V2"] = "true"
-        os.environ["LANGCHAIN_API_KEY"] = str(ls_key)
-        os.environ["LANGCHAIN_PROJECT"] = str(
-            st.secrets.get("LANGCHAIN_PROJECT", "telecom-support")
-        )
-    else:
-        # Disable tracing so a missing/invalid LangSmith key can never break the app.
-        os.environ["LANGCHAIN_TRACING_V2"] = "false"
-
-    return str(openai_key), api_base
-
-
-# Credentials are returned so they can be passed explicitly into the model clients.
-OPENAI_API_KEY, OPENAI_API_BASE = _load_secrets_into_env()
 
 # LangChain / LangGraph imports come *after* env is populated.
 from langchain_core.documents import Document                       # noqa: E402
