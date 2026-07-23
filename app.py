@@ -13,25 +13,23 @@ Key properties preserved from the notebook:
   * PIN-based Identity Gate with per-account session lockout
   * Verification-gated tools (get_plan, raise_network_ticket)
   * Real LangGraph create_react_agent specialists with tool use
-  * Chroma semantic policy search over policy_kb.md
+  * Chroma semantic policy search over policy_kb.pdf
   * Lenient supervisor review with a single retry, then escalation
   * Two-layer output guardrail (regex + LLM) with escalation fallback
   * Cross-session customer memory keyed by customer_account_id
   * Full per-node decision log (audit trail)
 
 Secrets:
-  Credentials are read from Streamlit secrets (st.secrets), NOT from a
-  config.json file. Set these in .streamlit/secrets.toml locally, or in the
-  "Secrets" panel of your Streamlit Community Cloud app:
+    Set these in the "Secrets" panel of your Streamlit Community Cloud app:
 
-      OPENAI_API_KEY = "sk-..."
-      OPENAI_API_BASE = "https://api.openai.com/v1"   # optional, only if proxied
+      OPENAI_API_KEY = "gl-..."
+      OPENAI_API_BASE = "https://aibe.mygreatlearning.com/openai/v1"   
       LANGCHAIN_TRACING_V2 = "false"                   # "true" to enable LangSmith
       LANGCHAIN_API_KEY = "ls-..."                     # only if tracing enabled
       LANGCHAIN_PROJECT = "telecom-support"            # only if tracing enabled
 
 Required data files (place next to app.py in the repo):
-      accounts.csv, plans.csv, policy_kb.md
+      accounts.csv, plans.csv, policy_kb.pdf
   customer_memory.json is created automatically on first write.
 """
 
@@ -59,7 +57,7 @@ OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 OPENAI_API_BASE = st.secrets["OPENAI_API_BASE"]
 LANGCHAIN_API_KEY = st.secrets["LANGCHAIN_API_KEY"]
 LANGCHAIN_TRACING_V2 = st.secrets["LANGCHAIN_TRACING_V2"]
-LANGCHAIN_PROJECT = "telecom"
+LANGCHAIN_PROJECT = st.secrets["LANGCHAIN_PROJECT"]
 
 
 
@@ -119,7 +117,7 @@ st.markdown(
 # ══════════════════════════════════════════════════════════════════════════════
 ACCOUNTS_FILE = "accounts.csv"
 PLANS_FILE = "plans.csv"
-POLICY_FILE = "policy_kb.md"
+POLICY_FILE = "policy_kb.pdf"
 MEMORY_FILE = "customer_memory.json"
 
 POLICY_TOP_K = 1
@@ -251,7 +249,7 @@ def load_stores():
         if not os.path.exists(f):
             st.error(
                 f"❌ Required data file **{f}** was not found in the app directory.\n\n"
-                "Make sure `accounts.csv`, `plans.csv`, and `policy_kb.md` are committed "
+                "Make sure `accounts.csv`, `plans.csv`, and `policy_kb.pdf` are committed "
                 "to the repository next to `app.py`."
             )
             st.stop()
@@ -284,15 +282,34 @@ def load_stores():
     return account_store, plan_store, accounts_df
 
 
+def _extract_pdf_text(path: str) -> str:
+    """Extract all text from a PDF into a single string, preserving page order."""
+    from pypdf import PdfReader
+
+    reader = PdfReader(path)
+    pages = [(page.extract_text() or "") for page in reader.pages]
+    return "\n".join(pages)
+
+
 @st.cache_resource(show_spinner="Building policy knowledge base…")
 def build_policy_vectorstore():
-    """Chunk policy_kb.md by '## POLICY:' section and embed into a Chroma store."""
+    """Chunk policy_kb.pdf by '## POLICY:' section and embed into a Chroma store."""
     _, embeddings = get_models()
 
-    with open(POLICY_FILE, "r", encoding="utf-8") as f:
-        text = f.read()
+    text = _extract_pdf_text(POLICY_FILE)
 
-    chunks = ["POLICY:" + s.strip() for s in text.split("## POLICY:")[1:]]
+    if "## POLICY:" in text:
+        # PDF preserves the markdown-style section markers.
+        chunks = ["POLICY:" + s.strip() for s in text.split("## POLICY:")[1:]]
+    else:
+        # Fallback: markers lost during PDF extraction — split on blank lines
+        # so each policy block still becomes its own retrievable chunk.
+        chunks = [
+            blk.strip()
+            for blk in re.split(r"\n\s*\n", text)
+            if blk.strip()
+        ]
+
     documents = [
         Document(page_content=c, metadata={"source": "policy_kb"}) for c in chunks
     ]
