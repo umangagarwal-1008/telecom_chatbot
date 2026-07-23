@@ -1,0 +1,17 @@
+# Union Mobile Telecom Support Chatbot — Streamlit deployment
+# Versions aligned with Telecom_Chatbot_v6.ipynb, plus Streamlit + Chroma.
+
+streamlit==1.40.2
+
+openai==2.45.0
+langchain-openai==1.4.0
+langchain-community==0.3.29
+langgraph==1.2.9
+langsmith==0.10.2
+
+# Vector store for semantic policy search (policy_kb.md)
+chromadb==0.5.23
+
+pandas==2.2.2
+numpy==2.0.2
+typing-extensions>=4.11.0
