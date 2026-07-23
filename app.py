@@ -79,23 +79,34 @@ def _load_secrets_into_env() -> None:
 
     os.environ["OPENAI_API_KEY"] = str(openai_key)
 
-    # Optional: custom base URL (e.g. a proxy or Azure-compatible gateway).
-    api_base = st.secrets.get("OPENAI_API_BASE", "")
+    # Custom base URL (e.g. the Great Learning proxy or an Azure-compatible
+    # gateway). We keep it in a module global AND the env vars so it is passed
+    # explicitly into every model client below — relying on env vars alone is
+    # unreliable across langchain-openai versions.
+    api_base = str(st.secrets.get("OPENAI_API_BASE", "") or "").strip()
     if api_base:
-        os.environ["OPENAI_BASE_URL"] = str(api_base)
+        os.environ["OPENAI_BASE_URL"] = api_base
+        os.environ["OPENAI_API_BASE"] = api_base
 
-    # Optional: LangSmith observability.
+    # Optional: LangSmith observability. Only enable tracing if a key is present,
+    # otherwise the tracer itself raises auth errors.
     tracing = str(st.secrets.get("LANGCHAIN_TRACING_V2", "false")).lower()
-    os.environ["LANGCHAIN_TRACING_V2"] = tracing
-    if tracing == "true":
-        if st.secrets.get("LANGCHAIN_API_KEY"):
-            os.environ["LANGCHAIN_API_KEY"] = str(st.secrets["LANGCHAIN_API_KEY"])
+    ls_key = st.secrets.get("LANGCHAIN_API_KEY", "")
+    if tracing == "true" and ls_key:
+        os.environ["LANGCHAIN_TRACING_V2"] = "true"
+        os.environ["LANGCHAIN_API_KEY"] = str(ls_key)
         os.environ["LANGCHAIN_PROJECT"] = str(
             st.secrets.get("LANGCHAIN_PROJECT", "telecom-support")
         )
+    else:
+        # Disable tracing so a missing/invalid LangSmith key can never break the app.
+        os.environ["LANGCHAIN_TRACING_V2"] = "false"
+
+    return str(openai_key), api_base
 
 
-_load_secrets_into_env()
+# Credentials are returned so they can be passed explicitly into the model clients.
+OPENAI_API_KEY, OPENAI_API_BASE = _load_secrets_into_env()
 
 # LangChain / LangGraph imports come *after* env is populated.
 from langchain_core.documents import Document                       # noqa: E402
@@ -262,8 +273,14 @@ def redact_pii(inputs: dict) -> dict:
 # ══════════════════════════════════════════════════════════════════════════════
 @st.cache_resource(show_spinner="Loading language models…")
 def get_models():
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+    # Pass api_key and base_url explicitly so the custom endpoint (e.g. the
+    # Great Learning proxy) is always used, regardless of env-var handling.
+    common = {"api_key": OPENAI_API_KEY}
+    if OPENAI_API_BASE:
+        common["base_url"] = OPENAI_API_BASE
+
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, **common)
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-small", **common)
     return llm, embeddings
 
 
