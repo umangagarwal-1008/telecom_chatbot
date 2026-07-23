@@ -83,7 +83,6 @@ def _load_secrets_into_env() -> None:
     api_base = st.secrets.get("OPENAI_API_BASE", "")
     if api_base:
         os.environ["OPENAI_BASE_URL"] = str(api_base)
-        os.environ["OPENAI_API_BASE"] = str(api_base)
 
     # Optional: LangSmith observability.
     tracing = str(st.secrets.get("LANGCHAIN_TRACING_V2", "false")).lower()
