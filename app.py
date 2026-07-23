@@ -303,6 +303,9 @@ def build_policy_vectorstore():
     )
     return vectorstore, len(chunks)
 
+st.write("Base URL:", OPENAI_API_BASE)
+st.write("Key prefix:", OPENAI_API_KEY[:12])
+st.write("Key length:", len(OPENAI_API_KEY))
 
 # Materialise the shared resources (module-level, cached).
 LLM, EMBEDDINGS = get_models()
