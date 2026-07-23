@@ -303,11 +303,16 @@ def build_policy_vectorstore():
     )
     return vectorstore, len(chunks)
 
+
+st.write("Base URL:", OPENAI_API_BASE)
+st.write("Key prefix:", OPENAI_API_KEY[:12])
+st.write("Key length:", len(OPENAI_API_KEY))
+
 from openai import OpenAI
 
 client = OpenAI(
-    api_key=OPENAI_API_KEY,
-    base_url=OPENAI_API_BASE,
+    api_key="gl-U2FsdGVkX1+Kin1aC7JbvGpmmXLtPG21g1m52xo50XBTK+GqO68ZJD7ywkrVejYL",
+    base_url="https://aibe.mygreatlearning.com/openai/v1",
 )
 
 try:
