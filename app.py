@@ -304,28 +304,6 @@ def build_policy_vectorstore():
     return vectorstore, len(chunks)
 
 
-st.write("Base URL:", OPENAI_API_BASE)
-st.write("Key prefix:", OPENAI_API_KEY[:12])
-st.write("Key length:", len(OPENAI_API_KEY))
-
-from openai import OpenAI
-
-client = OpenAI(
-    api_key="gl-U2FsdGVkX1+Kin1aC7JbvGpmmXLtPG21g1m52xo50XBTK+GqO68ZJD7ywkrVejYL",
-    base_url="https://aibe.mygreatlearning.com/openai/v1",
-)
-
-try:
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": "Hello"}],
-    )
-    st.success("Chat API works!")
-    st.write(response.choices[0].message.content)
-
-except Exception as e:
-    st.error(e)
-
 # Materialise the shared resources (module-level, cached).
 LLM, EMBEDDINGS = get_models()
 ACCOUNT_STORE, PLAN_STORE, ACCOUNTS_DF = load_stores()
